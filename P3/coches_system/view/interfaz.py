@@ -101,9 +101,16 @@ class InterfazAutos:
         if not all([marca, color, modelo, velocidad, caballaje, plazas]):
             messagebox.showwarning("Advertencia", "Todos los campos son obligatorios")
             return
-            
-        messagebox.showinfo("Éxito", "Auto guardado correctamente")
         
+        resultado = self.controlador.insertar_auto(marca, color, modelo, velocidad, caballaje, plazas)
+        self.controlador.respuesta_operacion("Insertar Auto", resultado)
+        if resultado:
+            self.mostrar_alerta("Auto agregado exitosamente", tipo="exito")
+            self.menu_acciones_coches()
+        else:
+            self.mostrar_alerta("Error al agregar el auto", tipo="error")
+            return False
+
     def insertar_camionetas(self):
         self.borrarPantalla()
         
@@ -152,6 +159,8 @@ class InterfazAutos:
         
     def guardar_camioneta(self):
         messagebox.showinfo("Éxito", "Camioneta guardada correctamente")
+        self.mostrar_alerta("Camioneta agregada exitosamente")
+        return True 
         
     def insertar_camiones(self):
         self.borrarPantalla()
@@ -201,12 +210,35 @@ class InterfazAutos:
         
     def guardar_camion(self):
         messagebox.showinfo("Éxito", "Camión guardado correctamente")
+        self.mostrar_alerta("Camión agregado exitosamente")
+        return True 
         
     def consultar_autos(self):
         self.borrarPantalla()
         
         tk.Label(self.root, text="CONSULTAR AUTOS REGISTRADOS", font=("Arial", 16)).pack(pady=20)
         
+        autos = self.controlador.consultar_autos()
+        
+        if autos:
+            texto = ""
+            for auto in autos:
+                texto += f"ID: {auto[0]} | Marca: {auto[1]} | Color: {auto[2]} | Modelo: {auto[3]}\nVelocidad: {auto[4]} | Caballaje: {auto[5]} | Plazas: {auto[6]}\n\n"
+            
+            frame_texto = tk.Frame(self.root)
+            frame_texto.pack(pady=10, fill=tk.BOTH, expand=True)
+            
+            scrollbar = tk.Scrollbar(frame_texto)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            text_widget = tk.Text(frame_texto, yscrollcommand=scrollbar.set, height=15, width=80)
+            text_widget.insert(tk.END, texto)
+            text_widget.config(state=tk.DISABLED)
+            text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.config(command=text_widget.yview)
+        else:
+            messagebox.showinfo("Información", "No hay autos registrados")
+
         tk.Button(self.root, text="REGRESAR", command=self.menu_acciones_coches, width=20).pack(pady=20)
 
     def consultar_camionetas(self):
@@ -244,10 +276,14 @@ class InterfazAutos:
         if not id_auto:
             messagebox.showwarning("Advertencia", "Ingrese un ID")
             return
-            
-        self.mostrar_formulario_actualizar_auto(id_auto)
+        
+        auto = self.controlador.consultar_auto_por_id(id_auto)
+        if auto:
+            self.mostrar_formulario_actualizar_auto(id_auto, auto)
+        else:
+            messagebox.showerror("Error", "Auto no encontrado")
     
-    def mostrar_formulario_actualizar_auto(self, id_auto):
+    def mostrar_formulario_actualizar_auto(self, id_auto, auto):
         self.borrarPantalla()
         
         tk.Label(self.root, text=f"ACTUALIZAR AUTO - ID: {id_auto}", font=("Arial", 16)).pack(pady=20)
@@ -257,34 +293,51 @@ class InterfazAutos:
         
         tk.Label(frame_form, text="Marca:").grid(row=0, column=0, padx=10, pady=5, sticky="e")
         entry_marca = tk.Entry(frame_form, width=30)
+        entry_marca.insert(0, auto[1])
         entry_marca.grid(row=0, column=1, padx=10, pady=5)
         
         tk.Label(frame_form, text="Color:").grid(row=1, column=0, padx=10, pady=5, sticky="e")
         entry_color = tk.Entry(frame_form, width=30)
+        entry_color.insert(0, auto[2])
         entry_color.grid(row=1, column=1, padx=10, pady=5)
         
         tk.Label(frame_form, text="Modelo:").grid(row=2, column=0, padx=10, pady=5, sticky="e")
         entry_modelo = tk.Entry(frame_form, width=30)
+        entry_modelo.insert(0, auto[3])
         entry_modelo.grid(row=2, column=1, padx=10, pady=5)
         
         tk.Label(frame_form, text="Velocidad:").grid(row=3, column=0, padx=10, pady=5, sticky="e")
         entry_velocidad = tk.Entry(frame_form, width=30)
+        entry_velocidad.insert(0, auto[4])
         entry_velocidad.grid(row=3, column=1, padx=10, pady=5)
         
         tk.Label(frame_form, text="Caballaje:").grid(row=4, column=0, padx=10, pady=5, sticky="e")
         entry_caballaje = tk.Entry(frame_form, width=30)
+        entry_caballaje.insert(0, auto[5])
         entry_caballaje.grid(row=4, column=1, padx=10, pady=5)
         
         tk.Label(frame_form, text="Plazas:").grid(row=5, column=0, padx=10, pady=5, sticky="e")
         entry_plazas = tk.Entry(frame_form, width=30)
+        entry_plazas.insert(0, auto[6])
         entry_plazas.grid(row=5, column=1, padx=10, pady=5)
         
         frame_botones = tk.Frame(self.root)
         frame_botones.pack(pady=20)
         
-        tk.Button(frame_botones, text="ACTUALIZAR", command=lambda: messagebox.showinfo("Éxito", "Auto actualizado"), width=15).pack(side="left", padx=10)
+        tk.Button(frame_botones, text="ACTUALIZAR", command=lambda: self.ejecutar_actualizar_auto(id_auto, entry_marca.get(), entry_color.get(), entry_modelo.get(), entry_velocidad.get(), entry_caballaje.get(), entry_plazas.get()), width=15).pack(side="left", padx=10)
         tk.Button(frame_botones, text="CANCELAR", command=self.menu_acciones_coches, width=15).pack(side="left", padx=10)
     
+    def ejecutar_actualizar_auto(self, id_auto, marca, color, modelo, velocidad, caballaje, plazas):
+        resultado = self.controlador.actualizar_auto(id_auto, marca, color, modelo, velocidad, caballaje, plazas)
+        self.controlador.respuesta_operacion("Actualizar Auto", resultado)
+        if resultado:
+            self.mostrar_alerta("Auto actualizado exitosamente", tipo="exito")
+            self.menu_acciones_coches()
+            return True 
+        else:
+            self.mostrar_alerta("Error al actualizar el auto", tipo="error")
+            return False
+
     def cambiar_camionetas(self):
         self.borrarPantalla()
         
@@ -356,10 +409,32 @@ class InterfazAutos:
         if not id_auto:
             messagebox.showwarning("Advertencia", "Ingrese un ID")
             return
-            
-        confirmar = messagebox.askyesno("Confirmar", f"¿Está seguro de eliminar el auto con ID: {id_auto}?")
-        if confirmar:
-            messagebox.showinfo("Éxito", f"Auto con ID: {id_auto} eliminado")
+
+        # Buscar el auto antes de confirmar eliminación
+        auto = self.controlador.consultar_auto_por_id(id_auto)
+        if not auto:
+            messagebox.showerror("Error", "Auto no encontrado")
+            return
+
+        detalles = (
+            f"ID: {auto[0]} | Marca: {auto[1]} | Color: {auto[2]} | Modelo: {auto[3]}\n"
+            f"Velocidad: {auto[4]} | Caballaje: {auto[5]} | Plazas: {auto[6]}"
+        )
+
+        confirmar = messagebox.askyesno("Confirmar eliminación", f"¿Está seguro de eliminar el siguiente auto?\n\n{detalles}")
+        if not confirmar:
+            messagebox.showinfo("Cancelado", "Operación cancelada")
+            return
+
+        resultado = self.controlador.eliminar_auto(id_auto)
+        self.controlador.respuesta_operacion("Eliminar Auto", resultado)
+        if resultado:
+            # una sola alerta de éxito; luego volver al menú de autos
+            self.mostrar_alerta("Auto eliminado exitosamente", tipo="exito")
+            self.menu_acciones_coches()
+        else:
+            self.mostrar_alerta("Error al eliminar el auto", tipo="error")
+            return False
 
     def borrar_camionetas(self):
         self.borrarPantalla()
@@ -388,6 +463,11 @@ class InterfazAutos:
         confirmar = messagebox.askyesno("Confirmar", f"¿Está seguro de eliminar la camioneta con ID: {id_camioneta}?")
         if confirmar:
             messagebox.showinfo("Éxito", f"Camioneta con ID: {id_camioneta} eliminada")
+            self.mostrar_alerta("Camioneta eliminada exitosamente")
+            return True
+        else:
+            self.mostrar_alerta("Error al eliminar la camioneta")
+            return False
 
     def borrar_camiones(self):
         self.borrarPantalla()
@@ -416,7 +496,20 @@ class InterfazAutos:
         confirmar = messagebox.askyesno("Confirmar", f"¿Está seguro de eliminar el camión con ID: {id_camion}?")
         if confirmar:
             messagebox.showinfo("Éxito", f"Camion con ID: {id_camion} eliminado")
+            self.mostrar_alerta("Camión eliminado exitosamente")
+            return True  
+        else:
+            self.mostrar_alerta("Error al eliminar el camión")
+            return False
         
+    def mostrar_alerta(self, mensaje, tipo="info"):
+        if tipo == "exito":
+            messagebox.showinfo("Éxito", mensaje)
+        elif tipo == "error":
+            messagebox.showerror("Error", mensaje)
+        else:
+            messagebox.showinfo("Información", mensaje)
+
     def ejecutar(self):
         self.menu_principal()
         self.root.mainloop()
